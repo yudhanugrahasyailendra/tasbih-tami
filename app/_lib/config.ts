@@ -70,8 +70,6 @@ export const CONFIG = {
   //   address: "Jl. Contoh No. 12, Watampone, Kab. Bone 92711",
   // },
   music:
-    "/sounds/Richard Marx - Right Here Waiting (Piano Cover by Riyandi Kusuma).mp3", // kosongkan ("") untuk menghilangkan musik dan tombolnya
+    "/sounds/Beautiful In White - Saxserenade (Westlife - Saxophone Cover).mp3", // kosongkan ("") untuk menghilangkan musik dan tombolnya
   photoCredit: "", // contoh: 'Foto oleh Studio Contoh'; kosong = disembunyikan
-  storageKey: "undangan-prewedding-ucapan",
-  apiUrl: "", // opsional: GET mengembalikan array, POST menerima satu ucapan (JSON)
 };

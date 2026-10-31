@@ -1,13 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { ambilUcapan, kirimUcapan } from "../actions";
 import { CONFIG, type Person } from "../_lib/config";
 import { ago, fmtDate, fmtTime, gcal } from "../_lib/format";
 import { GALLERY, PHOTOS, type PhotoKey } from "../_lib/photos";
+import { ATTENDANCE_LABEL, ATTENDANCE_OPTIONS, type Wish } from "../_lib/wishes";
 
-type Wish = { nama: string; hadir: string; jumlah: string; ucapan: string; ts: number };
 
 const { bride, groom, events } = CONFIG;
 const MUSIC_LEVEL = 0.5;
@@ -18,19 +18,6 @@ const NAV = [
   ["hadiah", "Hadiah"],
   ["ucapan", "Ucapan"],
 ] as const;
-
-function readLocal(): Wish[] {
-  try {
-    return JSON.parse(localStorage.getItem(CONFIG.storageKey) ?? "[]") || [];
-  } catch {
-    return [];
-  }
-}
-function writeLocal(l: Wish[]) {
-  try {
-    localStorage.setItem(CONFIG.storageKey, JSON.stringify(l));
-  } catch { }
-}
 
 function Fig({ k, priority }: { k: PhotoKey; priority?: boolean }) {
   const p = PHOTOS[k];
@@ -84,8 +71,16 @@ function GiftRow({ title, number, note, copy }: { title: string; number?: string
   );
 }
 
-export default function Invitation() {
-  const guest = useSearchParams().get("to") ?? "";
+type Props = {
+  /** Nama tamu untuk cover dan form. */
+  guest?: string;
+  /** Slug tamu terdaftar; server memverifikasinya lagi saat ucapan dikirim. */
+  slug?: string;
+  /** Batas jumlah hadir tamu terdaftar. Tanpa ini, pilihan jumlah tidak ditampilkan. */
+  maxPax?: number;
+};
+
+export default function Invitation({ guest = "", slug, maxPax }: Props) {
 
   const [opened, setOpened] = useState(false);
   const [coverGone, setCoverGone] = useState(false);
@@ -96,6 +91,7 @@ export default function Invitation() {
   const [toast, setToast] = useState("");
   const [nama, setNama] = useState(guest);
   const [ucapan, setUcapan] = useState("");
+  const [sending, setSending] = useState(false);
   const [cur, setCur] = useState(0);
   const [musicOk, setMusicOk] = useState(!!CONFIG.music);
 
@@ -159,18 +155,9 @@ export default function Invitation() {
     return () => so.disconnect();
   }, []);
 
-  /* Muat ucapan */
+  /* Muat ucapan dari Supabase */
   useEffect(() => {
-    (async () => {
-      let list = readLocal();
-      if (CONFIG.apiUrl) {
-        try {
-          const r = await fetch(CONFIG.apiUrl);
-          if (r.ok) list = await r.json();
-        } catch { }
-      }
-      setWishes(list);
-    })();
+    ambilUcapan().then(setWishes).catch(() => {});
   }, []);
 
   /* Musik latar: mulai saat tombol cover ditekan (syarat browser), fade masuk dan keluar.
@@ -229,27 +216,23 @@ export default function Invitation() {
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const item: Wish = {
-      nama: nama.trim(),
-      hadir: String(fd.get("hadir")),
-      jumlah: String(fd.get("jumlah")),
-      ucapan: ucapan.trim(),
-      ts: Date.now(),
-    };
-    if (!item.nama || !item.ucapan) return;
-    const list = [...readLocal(), item];
-    writeLocal(list);
-    if (CONFIG.apiUrl) {
-      try {
-        await fetch(CONFIG.apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(item) });
-      } catch {
-        showToast("Tersimpan di perangkat ini, belum terkirim ke server.");
+    if (sending) return;
+    const form = e.currentTarget;
+    setSending(true);
+    try {
+      const res = await kirimUcapan(new FormData(form));
+      if (!res.ok) {
+        showToast(res.error ?? "Ucapan gagal dikirim.");
+        return;
       }
+      setUcapan("");
+      setWishes(await ambilUcapan());
+      showToast("Ucapan terkirim. Terima kasih.");
+    } catch {
+      showToast("Ucapan gagal dikirim. Coba lagi sebentar.");
+    } finally {
+      setSending(false);
     }
-    setUcapan("");
-    setWishes(list);
-    showToast("Ucapan terkirim. Terima kasih.");
   }
 
   const mapQuery = encodeURIComponent(CONFIG.map.query);
@@ -458,44 +441,53 @@ export default function Invitation() {
               <form onSubmit={submit}>
                 <div>
                   <label htmlFor="f-nama">Nama</label>
-                  <input id="f-nama" type="text" maxLength={60} required autoComplete="name" value={nama} onChange={(e) => setNama(e.target.value)} />
+                  <input id="f-nama" name="name" type="text" maxLength={60} required autoComplete="name" value={nama} onChange={(e) => setNama(e.target.value)} />
                 </div>
                 <fieldset>
                   <legend>Kehadiran</legend>
                   <div className="opts">
-                    {["Hadir", "Tidak hadir", "Belum pasti"].map((v, i) => (
-                      <label key={v}>
-                        <input type="radio" name="hadir" value={v} defaultChecked={i === 0} />
-                        <span>{v}</span>
+                    {ATTENDANCE_OPTIONS.map((o, i) => (
+                      <label key={o.value}>
+                        <input type="radio" name="attendance" value={o.value} defaultChecked={i === 0} />
+                        <span>{o.label}</span>
                       </label>
                     ))}
                   </div>
                 </fieldset>
-                <div>
-                  <label htmlFor="f-jml">Jumlah tamu yang hadir</label>
-                  <select id="f-jml" name="jumlah" defaultValue="1">
-                    {[1, 2, 3, 4].map((n) => (
-                      <option key={n}>{n}</option>
-                    ))}
-                  </select>
-                </div>
+                {maxPax ? (
+                  <div>
+                    <label htmlFor="f-jml">Jumlah tamu yang hadir</label>
+                    <select id="f-jml" name="pax" defaultValue="1">
+                      {Array.from({ length: maxPax }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          {i + 1} orang
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
                 <div>
                   <label htmlFor="f-ucapan">Ucapan dan doa</label>
-                  <textarea id="f-ucapan" maxLength={400} required value={ucapan} onChange={(e) => setUcapan(e.target.value)} />
+                  <textarea id="f-ucapan" name="message" maxLength={500} required value={ucapan} onChange={(e) => setUcapan(e.target.value)} />
                 </div>
-                <button className="btn" type="submit">Kirim ucapan</button>
+                {slug && <input type="hidden" name="slug" value={slug} />}
+                {/* honeypot: disembunyikan dari manusia */}
+                <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: "-9999px" }} />
+                <button className="btn" type="submit" disabled={sending}>{sending ? "Mengirim..." : "Kirim ucapan"}</button>
               </form>
               <h3 className="wishes-h">{wishes.length ? `Ucapan dari tamu (${wishes.length})` : "Ucapan dari tamu"}</h3>
               <div className="wishes">
                 {wishes.length ? (
-                  wishes.slice().reverse().map((w) => (
-                    <div className="wish" key={w.ts + w.nama}>
-                      <b>{w.nama}</b>
+                  wishes.map((w) => (
+                    <div className="wish" key={w.id}>
+                      <b>{w.name}</b>
                       <small>
-                        {w.hadir}
-                        {w.hadir === "Hadir" ? ` (${w.jumlah} orang)` : ""} · {ago(w.ts)}
+                        {w.attendance ? ATTENDANCE_LABEL[w.attendance] : ""}
+                        {w.attendance === "hadir" && w.pax ? ` (${w.pax} orang)` : ""}
+                        {w.attendance ? " · " : ""}
+                        {ago(Date.parse(w.created_at))}
                       </small>
-                      <p>{w.ucapan}</p>
+                      <p>{w.message}</p>
                     </div>
                   ))
                 ) : (

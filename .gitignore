@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# data tamu (pribadi)
+/tamu.txt
+/link-tamu.tsv
