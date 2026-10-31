@@ -46,10 +46,10 @@ export const CONFIG = {
     {
       name: "Resepsi",
       start: "2026-12-06T10:00:00+08:00",
-      what: "Jamuan bersama keluarga dan sahabat. Anda dipersilakan memberi doa langsung kepada kedua mempelai.",
-      venue: "GEDUNG ISLAMIC CENTRE IMMIM 1",
+      what: "Syukuran bersama keluarga besar, kerabat, dan sahabat di kediaman mempelai pria. Kami menantikan kehadiran dan doa restu Anda untuk kedua mempelai.",
+      venue: "RUMAH KEDIAMAN MEMPELAI LAKI-LAKI (MUH.TASBIH)",
       address:
-        "Jl. Poros Pakkasalo, Salo belawa Dekat jembatan tiga",
+        "Jl. Poros Pakkasalo, Salo Belawa Dekat Jembatan Tiga",
     },
   ] as InviteEvent[],
   // dresscode: "krem, peach, atau merah marun", // kosongkan untuk menyembunyikan
