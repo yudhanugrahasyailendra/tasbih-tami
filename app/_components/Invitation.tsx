@@ -505,6 +505,28 @@ export default function Invitation({ guest = "", slug, maxPax }: Props) {
               <p className="lead">Atas doa dan kehadiran Anda, kami ucapkan terima kasih. Wassalamu&apos;alaikum warahmatullahi wabarakatuh.</p>
               <p className="names">{bride.name} &amp; {groom.name}, dan keluarga besar</p>
               {CONFIG.photoCredit && <p className="meta">{CONFIG.photoCredit}</p>}
+              <aside className="made-by" aria-label="Pembuat undangan">
+                <p className="label">Created By:</p>
+                <Image className="logo" src={CONFIG.developer.logo} alt={CONFIG.developer.name} width={1324} height={468} sizes="160px" style={{ height: 48, width: "auto" }} />
+                <p className="ask">Ingin undangan digital seperti ini?</p>
+                <a
+                  className="btn line wa"
+                  href={`https://wa.me/${CONFIG.developer.whatsapp}?text=${encodeURIComponent("Halo, saya ingin membuat undangan digital.")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Hubungi ${CONFIG.developer.contactName} lewat WhatsApp, ${CONFIG.developer.whatsappLabel}`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      fill="currentColor"
+                      d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 1.9a8.1 8.1 0 1 1-4.3 15l-.3-.2-2.9.8.8-2.8-.2-.3A8.1 8.1 0 0 1 12 3.9Zm-3 3.7c-.2 0-.5.1-.7.4-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.2 2.4.9 2.9.7 3.4.7.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.7-.4l-1.9-.9c-.3-.1-.5-.1-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.700-1.600-2-.2-.3 0-.4.1-.6l.4-.5c.1-.1.2-.3.3-.5.1-.2 0-.4 0-.5l-.9-2.200c-.2-.5-.4-.5-.6-.5H9Z"
+                    />
+                  </svg>
+                  <span>
+                    {CONFIG.developer.contactName} · {CONFIG.developer.whatsappLabel}
+                  </span>
+                </a>
+              </aside>
             </div>
           </section>
         </main>

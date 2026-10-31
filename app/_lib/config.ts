@@ -71,5 +71,12 @@ export const CONFIG = {
   // },
   music:
     "/sounds/Beautiful In White - Saxserenade (Westlife - Saxophone Cover).mp3", // kosongkan ("") untuk menghilangkan musik dan tombolnya
+  developer: {
+    name: "Amanah Advertising",
+    logo: "/Amanah_Adv-removebg-preview.png",
+    contactName: "Amanah Advertising",
+    whatsapp: "6282187711537", // format internasional tanpa + (082187711537 -> 6282187711537)
+    whatsappLabel: "0821-8771-1537",
+  },
   photoCredit: "", // contoh: 'Foto oleh Studio Contoh'; kosong = disembunyikan
 };
