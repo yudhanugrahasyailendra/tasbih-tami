@@ -1,26 +1,219 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* =====================================================================
+   Tema "Tirai & Beludru"
+   Diambil dari isi foto: tirai emas, sofa dan kursi beludru merah,
+   tangga putih berpagar hitam, kebaya krem-peach.
+   Satu momen berani: tirai panggung yang terbuka saat undangan dibuka.
+   Selebihnya tenang: blok warna penuh, tanpa kartu, tanpa bayangan.
+
+   Palet
+     panggung  #1B1210  ruang gelap tempat foto sofa dan tirai diambil
+     beludru   #7A1420  merah sofa dan kursi
+     tirai     #B8A062  emas-zaitun tirai
+     tangga    #F2F2EF  dinding putih tangga
+     tinta     #17110F  pagar hitam
+   Huruf: Bodoni Moda (judul, ala poster teater) + Hanken Grotesk (isi)
+   ===================================================================== */
+:root{
+  --panggung:#1B1210; --beludru:#7A1420;
+  --tirai:#B8A062; --tirai-gelap:#6E5C2B;
+  --tangga:#F2F2EF; --tinta:#17110F;
+  --display:var(--font-display),'Bodoni 72',Didot,Georgia,serif;
+  --text:var(--font-text),system-ui,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;background:var(--panggung)}
+body{margin:0;background:var(--panggung);color:#F3EEE4;font:400 18px/1.6 var(--text)}
+body.locked{overflow:hidden}
+h1,h2,h3,p,ol,ul,figure,blockquote{margin:0}
+ol,ul{padding:0;list-style:none}
+img{display:block;max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:3px solid currentColor;outline-offset:3px}
+[hidden]{display:none!important}
+
+/* ---------- Tema per bagian (warna mengikuti isi foto) ---------- */
+.t-dark {--bg:var(--panggung);--fg:#F3EEE4;--mut:#CFC4B2;--line:rgba(243,238,228,.3)}
+.t-red  {--bg:var(--beludru); --fg:#FBF3EA;--mut:#EBD3CC;--line:rgba(251,243,234,.4)}
+.t-light{--bg:var(--tangga);  --fg:var(--tinta);--mut:#4A423C;--line:rgba(23,17,15,.35)}
+.t-ochre{--bg:var(--tirai);   --fg:var(--tinta);--mut:#2F2618;--line:rgba(23,17,15,.45)}
+.chapter,.gallery-sec,.hadiah{background:var(--bg);color:var(--fg)}
+
+/* ---------- Tipografi ---------- */
+h2{font:500 clamp(36px,6.2vw,60px)/1.02 var(--display);letter-spacing:-.015em;margin-bottom:20px}
+h3{font:500 clamp(28px,5vw,38px)/1.05 var(--display);letter-spacing:-.01em}
+.lead{font-size:19px;color:var(--mut);max-width:30em}
+.meta{font-size:16px;color:var(--mut)}
+p + p{margin-top:14px}
+
+/* ---------- Tombol ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:10px 26px;border:2px solid var(--fg);border-radius:0;background:var(--fg);color:var(--bg);font:600 17px/1 var(--text);cursor:pointer;text-decoration:none;transition:background .2s,color .2s}
+.btn:hover{background:transparent;color:var(--fg)}
+.btn.line{background:transparent;color:var(--fg)}
+.btn.line:hover{background:var(--fg);color:var(--bg)}
+
+/* =====================================================================
+   COVER: tirai panggung
+   ===================================================================== */
+#cover{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;overflow:hidden;--fg:#F3EEE4;--bg:#1B1210}
+.curtain{
+  position:absolute;top:0;bottom:0;width:50.6%;background-color:#8C7637;
+  background-image:
+    linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0) 24%,rgba(0,0,0,0) 78%,rgba(0,0,0,.5)),
+    repeating-linear-gradient(90deg,rgba(0,0,0,.36) 0,rgba(0,0,0,0) 16px,rgba(255,236,170,.11) 30px,rgba(0,0,0,.27) 46px,rgba(0,0,0,.36) 60px);
+  transition:transform 1.9s cubic-bezier(.65,0,.25,1) .35s;
+}
+.curtain.l{left:0;box-shadow:inset -22px 0 30px -14px rgba(0,0,0,.55)}
+.curtain.r{right:0;box-shadow:inset 22px 0 30px -14px rgba(0,0,0,.55)}
+.cover-text{position:relative;z-index:2;text-align:center;max-width:420px;color:#FFF8E8;transition:opacity .35s}
+.cover-text::before{content:"";position:absolute;inset:-90px -70px;z-index:-1;background:radial-gradient(closest-side,rgba(27,18,16,.8),rgba(27,18,16,.55) 60%,rgba(27,18,16,0))}
+.cover-text .small{font-size:17px;color:#EDE2C8}
+.cover-text .names{font:500 clamp(46px,13vw,76px)/.95 var(--display);letter-spacing:-.02em;margin:10px 0 26px}
+.cover-text .to{font-size:16px;color:#EDE2C8}
+.cover-text .guest{font:600 24px/1.2 var(--text);margin:4px 0 26px;overflow-wrap:anywhere}
+#cover.open{pointer-events:none}
+#cover.open .cover-text{opacity:0}
+#cover.open .curtain.l{transform:translateX(-102%)}
+#cover.open .curtain.r{transform:translateX(102%)}
+
+/* =====================================================================
+   CHAPTER: foto + teks. Mobile: foto di atas. Desktop: foto menempel
+   di satu sisi layar selama teks di sisi lain bergulir.
+   ===================================================================== */
+.chapter figure{position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--panggung)}
+.chapter figure img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--pos,50% 50%)}
+.chapter .body{padding:56px 24px 72px}
+.chapter .body > p,.chapter .body > .lead{max-width:34em}
+@media (min-width:900px){
+  .chapter{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .chapter figure{position:sticky;top:0;height:100svh;aspect-ratio:auto;align-self:start}
+  .chapter.flip figure{order:2}
+  .chapter .body{min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(56px,8vw,120px) clamp(32px,5.5vw,96px)}
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Hero: di ponsel foto di atas (agar pasangan tidak tertutup teks), nama di bawahnya */
+.hero figure{aspect-ratio:auto;height:60svh;min-height:420px}
+.hero .body{padding:30px 24px 96px}
+.hero h1{font:500 clamp(54px,15vw,124px)/.9 var(--display);letter-spacing:-.025em;color:#FBF3EA;overflow-wrap:anywhere}
+.hero h1:focus{outline:none}
+.hero .info{margin-top:26px;font:600 22px/1.25 var(--text)}
+.hero .count{margin-top:6px;color:var(--mut)}
+.hero .invite{margin-top:22px}
+@media (min-width:900px){
+  .hero figure{height:100svh;min-height:0}
+  .hero .body{min-height:100svh;padding:clamp(56px,8vw,120px) clamp(32px,5.5vw,96px)}
+  .hero h1{font-size:clamp(60px,6.6vw,118px)}   /* mengikuti lebar kolom, bukan lebar layar */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Pagar tangga: pemisah antara blok gelap dan blok terang */
+.rail{height:34px;border-top:6px solid var(--tinta);background:repeating-linear-gradient(90deg,var(--tinta) 0 2px,transparent 2px 16px),var(--bg)}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Pembuka */
+.verse{margin:30px 0 0;padding-left:20px;border-left:3px solid var(--tirai);font:italic 400 clamp(20px,2.4vw,24px)/1.45 var(--display);max-width:26em}
+.verse cite{display:block;margin-top:10px;font:500 15px/1.3 var(--text);font-style:normal;color:var(--mut)}
+
+/* Mempelai */
+.person + .person{margin-top:36px;padding-top:36px;border-top:1px solid var(--line)}
+.person h3{font-size:clamp(40px,7vw,56px)}
+.person .full{font:600 18px/1.3 var(--text);margin:10px 0}
+
+/* Jadwal: memang berurutan, jadi pakai garis waktu */
+.timeline{margin-top:34px;border-left:2px solid var(--fg);padding-left:28px}
+.timeline li{position:relative}
+.timeline li + li{margin-top:46px}
+.timeline li::before{content:"";position:absolute;left:-36px;top:9px;width:14px;height:14px;background:var(--beludru);outline:4px solid var(--bg)}
+.timeline .when{font:600 18px/1.35 var(--text);margin:10px 0 8px}
+.timeline .where{margin-top:12px}
+.timeline .where b{font-weight:600}
+.timeline .btn{margin-top:18px}
+.dress{margin-top:40px;padding-top:22px;border-top:1px solid var(--line)}
+
+/* Lokasi */
+.map{margin:22px 0;border:2px solid var(--fg)}
+.map iframe{display:block;width:100%;height:320px;border:0}
+
+/* Galeri */
+.gallery-sec{padding:72px 24px 84px}
+.gallery-sec .head{margin-bottom:32px}
+.masonry{columns:2;column-gap:10px}
+.tile{display:block;width:100%;margin:0 0 10px;padding:0;border:0;background:none;cursor:zoom-in;break-inside:avoid}
+.tile img{width:100%;height:auto}
+@media (min-width:900px){
+  .gallery-sec{padding:104px clamp(32px,5.5vw,96px) 120px}
+  .masonry{columns:3;column-gap:14px}
+  .tile{margin-bottom:14px}
+}
+dialog#lb{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;padding:0;border:0;background:transparent;color:#F3EEE4}
+dialog#lb::backdrop{background:rgba(12,8,7,.95)}
+.lb-in{height:100%;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;padding:64px 12px 16px;--fg:#F3EEE4;--bg:#1B1210}
+.lb-in img{width:100%;height:100%;object-fit:contain;min-height:0}
+.lb-bar{display:flex;align-items:center;justify-content:center;gap:12px}
+.lb-bar .btn{min-height:44px;padding:8px 18px;font-size:16px}
+.lb-close{position:absolute;top:12px;right:12px}
+
+/* Hadiah: tekstur lipatan tirai */
+.hadiah{padding:84px 24px;background-image:repeating-linear-gradient(90deg,rgba(23,17,15,.07) 0 22px,transparent 22px 44px)}
+.hadiah .wrap{display:grid;gap:32px}
+@media (min-width:900px){
+  .hadiah{padding:120px clamp(32px,5.5vw,96px)}
+  .hadiah .wrap{grid-template-columns:1fr 1fr;gap:clamp(40px,6vw,96px);align-items:start}
+}
+.gift{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 0;border-top:1px solid var(--fg)}
+.gift:last-child{border-bottom:1px solid var(--fg)}
+.gift .bank{font:600 16px/1.2 var(--text)}
+.gift .no{font:600 26px/1.2 var(--text);font-variant-numeric:tabular-nums;margin:4px 0 2px;overflow-wrap:anywhere}
+.gift .an{font-size:16px}
+.gift .btn{min-width:92px;flex:none}
+
+/* Konfirmasi dan ucapan */
+form{display:grid;gap:22px;margin-top:26px;max-width:34em}
+label,legend{display:block;font:600 16px/1.2 var(--text);margin-bottom:6px;padding:0}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+input[type=text],select,textarea{width:100%;padding:10px 0;border:0;border-bottom:2px solid var(--fg);border-radius:0;background:transparent;outline-offset:4px}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg) 50%),linear-gradient(135deg,var(--fg) 50%,transparent 50%);background-position:calc(100% - 14px) 52%,calc(100% - 8px) 52%;background-size:6px 6px;background-repeat:no-repeat}
+select option{color:#17110F}
+textarea{min-height:120px;resize:vertical;line-height:1.5}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opts label{margin:0}
+.opts input{position:absolute;opacity:0;pointer-events:none}
+.opts span{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:2px solid var(--fg);cursor:pointer;font-weight:600}
+.opts input:checked + span{background:var(--fg);color:var(--bg)}
+.opts input:focus-visible + span{outline:3px solid currentColor;outline-offset:3px}
+form .btn{justify-self:start}
+.wishes-h{font:600 20px/1.2 var(--text);letter-spacing:0;margin:46px 0 4px}
+.wishes{max-height:420px;overflow:auto;max-width:34em}
+.wish{padding:16px 0;border-top:1px solid var(--line)}
+.wish b{font-weight:700}
+.wish small{display:block;font-size:14px;margin:2px 0 6px;color:var(--mut)}
+.empty{padding:14px 0;border-top:1px solid var(--line);color:var(--mut)}
+
+/* Penutup */
+.closing .names{font:500 clamp(30px,5vw,44px)/1.1 var(--display);margin-top:30px}
+.closing .body{padding-bottom:130px}
+.closing .meta{margin-top:30px}
+
+/* Bilah bawah */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;max-width:640px;margin:0 auto;background:var(--panggung);border-top:3px solid var(--tirai);transform:translateY(110%);transition:transform .5s .3s}
+body.opened .bar{transform:none}
+.bar a,.bar button{flex:1 1 0;min-height:52px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:0;border-bottom:3px solid transparent;background:none;color:#F3EEE4;font:600 15px/1 var(--text);text-decoration:none;cursor:pointer}
+.bar a.on{border-bottom-color:var(--tirai)}
+/* Tombol musik: piringan hitam kecil, berputar saat musik bermain */
+.vinyl{position:fixed;right:16px;bottom:calc(55px + 14px);z-index:60;display:block;width:56px;height:56px;padding:0;border:0;border-radius:50%;background:none;color:var(--tirai);cursor:pointer;transform:translateY(calc(100% + 90px));transition:transform .5s .3s}
+body.opened .vinyl{transform:none}
+/* Layar lebar: bilah bawah tidak sampai ke pojok, jadi tombol turun ke ujung kanan bawah */
+@media (min-width:820px){.vinyl{right:24px;bottom:24px}}
+.vinyl .disc{display:block;animation:spin 3.2s linear infinite;animation-play-state:paused}
+.vinyl[aria-pressed=true] .disc{animation-play-state:running}
+.vinyl .state{position:absolute;left:50%;top:50%;translate:-50% -50%;fill:var(--panggung);pointer-events:none}
+.vinyl:hover .disc{filter:brightness(1.2)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:78px;z-index:120;transform:translate(-50%,20px);opacity:0;padding:12px 20px;background:#F3EEE4;color:#17110F;font:600 15px/1.2 var(--text);pointer-events:none;transition:opacity .25s,transform .25s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{transition-duration:0s!important;transition-delay:0s!important}
+  .vinyl .disc{animation:none}
 }

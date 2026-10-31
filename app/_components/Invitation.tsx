@@ -1,0 +1,569 @@
+"use client";
+
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { CONFIG, type Person } from "../_lib/config";
+import { ago, fmtDate, fmtTime, gcal } from "../_lib/format";
+import { GALLERY, PHOTOS, type PhotoKey } from "../_lib/photos";
+
+type Wish = { nama: string; hadir: string; jumlah: string; ucapan: string; ts: number };
+
+const { bride, groom, events } = CONFIG;
+const MUSIC_LEVEL = 0.5;
+const NAV = [
+  ["acara", "Acara"],
+  ["lokasi", "Lokasi"],
+  ["galeri", "Galeri"],
+  ["hadiah", "Hadiah"],
+  ["ucapan", "Ucapan"],
+] as const;
+
+function readLocal(): Wish[] {
+  try {
+    return JSON.parse(localStorage.getItem(CONFIG.storageKey) ?? "[]") || [];
+  } catch {
+    return [];
+  }
+}
+function writeLocal(l: Wish[]) {
+  try {
+    localStorage.setItem(CONFIG.storageKey, JSON.stringify(l));
+  } catch { }
+}
+
+function Fig({ k, priority }: { k: PhotoKey; priority?: boolean }) {
+  const p = PHOTOS[k];
+  return (
+    <figure style={{ "--pos": p.pos } as CSSProperties}>
+      <Image src={p.src} alt={p.alt} fill sizes="(min-width: 900px) 50vw, 100vw" priority={priority} />
+    </figure>
+  );
+}
+
+function PersonCard({ p, role }: { p: Person; role: "Putri" | "Putra" }) {
+  return (
+    <article className="person">
+      <h3>{p.name}</h3>
+      <p className="full">{p.full}</p>
+      <p>
+        {role} dari {p.parents}.
+      </p>
+    </article>
+  );
+}
+
+function GiftRow({ title, number, note, copy }: { title: string; number?: string; note: string; copy: string }) {
+  const [done, setDone] = useState(false);
+  async function onCopy() {
+    try {
+      await navigator.clipboard.writeText(copy);
+    } catch {
+      const t = document.createElement("textarea");
+      t.style.cssText = "position:fixed;opacity:0";
+      t.value = copy;
+      document.body.append(t);
+      t.select();
+      document.execCommand("copy");
+      t.remove();
+    }
+    setDone(true);
+    setTimeout(() => setDone(false), 1600);
+  }
+  return (
+    <div className="gift">
+      <div>
+        <p className="bank">{title}</p>
+        {number && <p className="no">{number}</p>}
+        <p className="an">{note}</p>
+      </div>
+      <button className="btn line" type="button" onClick={onCopy}>
+        {done ? "Tersalin" : "Salin"}
+      </button>
+    </div>
+  );
+}
+
+export default function Invitation() {
+  const guest = useSearchParams().get("to") ?? "";
+
+  const [opened, setOpened] = useState(false);
+  const [coverGone, setCoverGone] = useState(false);
+  const [active, setActive] = useState("");
+  const [count, setCount] = useState("");
+  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [playing, setPlaying] = useState(false);
+  const [toast, setToast] = useState("");
+  const [nama, setNama] = useState(guest);
+  const [ucapan, setUcapan] = useState("");
+  const [cur, setCur] = useState(0);
+  const [musicOk, setMusicOk] = useState(!!CONFIG.music);
+
+  const h1Ref = useRef<HTMLHeadingElement>(null);
+  const openRef = useRef<HTMLButtonElement>(null);
+  const bgmRef = useRef<HTMLAudioElement>(null);
+  const lbRef = useRef<HTMLDialogElement>(null);
+  const music = useRef({ want: false, raf: 0 });
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const names = (
+    <>
+      {groom.name}
+      <br />
+      &amp; {bride.name}
+    </>
+  );
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 2200);
+  };
+
+  /* Kunci scroll selama cover tampil */
+  useEffect(() => {
+    document.body.classList.toggle("locked", !opened);
+    document.body.classList.toggle("opened", opened);
+    return () => document.body.classList.remove("locked", "opened");
+  }, [opened]);
+
+  useEffect(() => openRef.current?.focus({ preventScroll: true }), []);
+
+  /* Hitung mundur dalam kalimat */
+  useEffect(() => {
+    const target = new Date(CONFIG.countdown.to).getTime();
+    const label = CONFIG.countdown.label;
+    const tick = () => {
+      const ms = target - Date.now();
+      if (ms <= 0) {
+        setCount(`${label[0].toUpperCase() + label.slice(1)} sudah berlangsung. Terima kasih atas doa Anda.`);
+        return;
+      }
+      const d = Math.floor(ms / 864e5);
+      const hr = Math.floor((ms % 864e5) / 36e5);
+      const mn = Math.floor((ms % 36e5) / 6e4);
+      setCount(d > 0 ? `${d} hari ${hr} jam lagi menuju ${label}.` : `${hr} jam ${mn} menit lagi menuju ${label}.`);
+    };
+    tick();
+    const id = setInterval(tick, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  /* Menu aktif */
+  useEffect(() => {
+    const so = new IntersectionObserver(
+      (es) => es.forEach((e) => e.isIntersecting && setActive(e.target.id)),
+      { rootMargin: "-45% 0px -50% 0px" },
+    );
+    document.querySelectorAll("main > section[id]").forEach((s) => so.observe(s));
+    return () => so.disconnect();
+  }, []);
+
+  /* Muat ucapan */
+  useEffect(() => {
+    (async () => {
+      let list = readLocal();
+      if (CONFIG.apiUrl) {
+        try {
+          const r = await fetch(CONFIG.apiUrl);
+          if (r.ok) list = await r.json();
+        } catch { }
+      }
+      setWishes(list);
+    })();
+  }, []);
+
+  /* Musik latar: mulai saat tombol cover ditekan (syarat browser), fade masuk dan keluar.
+     iOS mengabaikan volume, jadi fade hanya terdengar di desktop dan Android. */
+  function fadeTo(vol: number, ms: number, done?: () => void) {
+    const a = bgmRef.current;
+    if (!a) return;
+    cancelAnimationFrame(music.current.raf);
+    const from = a.volume;
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const k = ms ? Math.min(1, (now - t0) / ms) : 1;
+      a.volume = Math.max(0, Math.min(1, from + (vol - from) * k));
+      if (k < 1) music.current.raf = requestAnimationFrame(step);
+      else done?.();
+    };
+    music.current.raf = requestAnimationFrame(step);
+  }
+
+  async function playMusic() {
+    const a = bgmRef.current;
+    if (!a || !musicOk) return;
+    cancelAnimationFrame(music.current.raf);
+    music.current.want = true;
+    try {
+      a.volume = 0;
+      await a.play();
+      fadeTo(MUSIC_LEVEL, 1800);
+      setPlaying(true);
+    } catch {
+      music.current.want = false;
+      setPlaying(false);
+      showToast("Musik belum bisa diputar. Ketuk tombol Musik untuk mencoba lagi.");
+    }
+  }
+
+  function pauseMusic() {
+    music.current.want = false;
+    setPlaying(false);
+    fadeTo(0, 500, () => bgmRef.current?.pause());
+  }
+
+  function open() {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setOpened(true);
+    window.scrollTo(0, 0);
+    playMusic();
+    setTimeout(() => {
+      setCoverGone(true);
+      h1Ref.current?.focus({ preventScroll: true });
+    }, reduce ? 60 : 2400);
+  }
+
+  const showPhoto = (i: number) => setCur((i + GALLERY.length) % GALLERY.length);
+  const photo = PHOTOS[GALLERY[cur]];
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const item: Wish = {
+      nama: nama.trim(),
+      hadir: String(fd.get("hadir")),
+      jumlah: String(fd.get("jumlah")),
+      ucapan: ucapan.trim(),
+      ts: Date.now(),
+    };
+    if (!item.nama || !item.ucapan) return;
+    const list = [...readLocal(), item];
+    writeLocal(list);
+    if (CONFIG.apiUrl) {
+      try {
+        await fetch(CONFIG.apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(item) });
+      } catch {
+        showToast("Tersimpan di perangkat ini, belum terkirim ke server.");
+      }
+    }
+    setUcapan("");
+    setWishes(list);
+    showToast("Ucapan terkirim. Terima kasih.");
+  }
+
+  const mapQuery = encodeURIComponent(CONFIG.map.query);
+  const heroDate = fmtDate(CONFIG.countdown.to);
+
+  return (
+    <>
+      {/* ========== COVER: tirai panggung ========== */}
+      <div id="cover" className={opened ? "open" : undefined} role="dialog" aria-modal="true" aria-labelledby="cv-title" hidden={coverGone}>
+        <div className="curtain l" aria-hidden="true" />
+        <div className="curtain r" aria-hidden="true" />
+        <div className="cover-text">
+          <p className="small">Undangan pernikahan</p>
+          <p className="names" id="cv-title">{names}</p>
+          <p className="to">Kepada Yth.</p>
+          <p className="guest">{guest || "Bapak/Ibu/Saudara/i"}</p>
+          <button ref={openRef} className="btn" type="button" onClick={open}>
+            Buka undangan
+          </button>
+        </div>
+      </div>
+
+      <div id="page" inert={!opened}>
+        <main>
+          {/* Awal */}
+          <section className="chapter hero t-dark" id="awal">
+            <Fig k="celah" priority />
+            <div className="body">
+              <h1 ref={h1Ref} tabIndex={-1}>{names}</h1>
+              <p className="info">{heroDate}</p>
+              <p className="count">{count}</p>
+              <p className="invite lead">Kami mengundang Bapak/Ibu/Saudara/i untuk hadir dan mendoakan pernikahan kami.</p>
+              <button
+                className="vinyl"
+                type="button"
+                aria-pressed={playing}
+                aria-label={playing ? "Jeda musik" : "Putar musik"}
+                title={playing ? "Jeda musik" : "Putar musik"}
+                hidden={!musicOk}
+                onClick={() => (music.current.want ? pauseMusic() : playMusic())}
+              >
+                <svg className="disc" width="56" height="56" viewBox="0 0 64 64" aria-hidden="true">
+                  <circle cx="32" cy="32" r="31" fill="#17110F" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="32" cy="32" r="25" fill="none" stroke="currentColor" strokeOpacity=".35" />
+                  <circle cx="32" cy="32" r="20" fill="none" stroke="currentColor" strokeOpacity=".35" />
+                  <circle cx="32" cy="32" r="15" fill="none" stroke="currentColor" strokeOpacity=".35" />
+                  <path d="M10 22a24 24 0 0 1 12-12M54 42a24 24 0 0 1-12 12" fill="none" stroke="currentColor" strokeOpacity=".6" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="32" cy="32" r="10" fill="#B8A062" />
+                  <circle cx="32" cy="32" r="2" fill="#17110F" />
+                </svg>
+                <svg className="state" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                  {playing ? <path d="M6 4h4v16H6zM14 4h4v16h-4z" /> : <path d="M7 4.5v15l13-7.5z" />}
+                </svg>
+              </button>
+            </div>
+          </section>
+
+          {/* Pembuka */}
+          <section className="chapter flip t-dark" id="pembuka">
+            <Fig k="profilbw" />
+            <div className="body">
+              <h2>Assalamu&apos;alaikum</h2>
+              <p className="lead">
+                Dengan memohon rahmat dan ridha Allah SWT, kami akan melangsungkan pernikahan. Kehadiran dan doa Anda adalah kebahagiaan bagi kedua keluarga kami.
+              </p>
+              <blockquote className="verse">
+                “Di antara tanda-tanda kekuasaan-Nya, Dia menciptakan pasangan untukmu dari jenismu sendiri, agar kamu merasa tenteram kepadanya, dan Dia menjadikan di antaramu rasa kasih dan sayang.”
+                <cite>QS. Ar-Rum: 21</cite>
+              </blockquote>
+            </div>
+          </section>
+
+          {/* Mempelai */}
+          <section className="chapter t-red" id="mempelai">
+            <Fig k="rak" />
+            <div className="body">
+              <h2>Kedua mempelai</h2>
+              <div>
+                <PersonCard p={groom} role="Putra" />
+                <PersonCard p={bride} role="Putri" />
+              </div>
+            </div>
+          </section>
+
+          <div className="rail t-light" aria-hidden="true" />
+
+          {/* Jadwal */}
+          <section className="chapter flip t-light" id="acara">
+            <Fig k="lorong" />
+            <div className="body">
+              <h2>Jadwal acara</h2>
+              <p className="lead">Simpan setiap acara ke kalender agar tidak terlewat.</p>
+              <ol className="timeline">
+                {events.map((ev) => (
+                  <li key={`${ev.start}-${ev.name}`}>
+                    <h3>{ev.name}</h3>
+                    <p className="when">
+                      {fmtDate(ev.start)}, pukul {fmtTime(ev.start)}
+                      {ev.end ? "–" + fmtTime(ev.end) : ""} WITA
+                    </p>
+                    <p>{ev.what}</p>
+                    <p className="where">
+                      <b>{ev.venue}</b>
+                      <br />
+                      {ev.address}
+                    </p>
+                    <a
+                      className="btn line"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      href={
+                        "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+                        "&text=" + encodeURIComponent(`${ev.name}: ${bride.name} & ${groom.name}`) +
+                        "&dates=" + gcal(ev.start) + "/" + gcal(ev.end ?? ev.start) +
+                        "&location=" + encodeURIComponent(`${ev.venue}, ${ev.address}`)
+                      }
+                    >
+                      Tambahkan ke kalender
+                    </a>
+                  </li>
+                ))}
+              </ol>
+              {/* {CONFIG.dresscode && <p className="dress">Busana yang kami sarankan: {CONFIG.dresscode}.</p>} */}
+            </div>
+          </section>
+
+          {/* Lokasi */}
+          <section className="chapter t-red" id="lokasi">
+            <Fig k="tangga1" />
+            <div className="body">
+              <h2>Lokasi resepsi</h2>
+              <p>
+                <b>{CONFIG.map.venue}</b>
+                <br />
+                {CONFIG.map.address}
+              </p>
+              <div className="map">
+                <iframe
+                  title="Peta lokasi resepsi"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
+                />
+              </div>
+              <a className="btn line" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`}>
+                Buka di Google Maps
+              </a>
+            </div>
+          </section>
+
+          {/* Galeri */}
+          <section className="gallery-sec t-dark" id="galeri">
+            <div className="head">
+              <h2>Foto prewedding</h2>
+              <p className="lead">Ketuk foto untuk memperbesar.</p>
+            </div>
+            <div className="masonry">
+              {GALLERY.map((key, i) => {
+                const p = PHOTOS[key];
+                return (
+                  <button
+                    key={key}
+                    className="tile"
+                    type="button"
+                    aria-label={`Perbesar foto ${i + 1}: ${p.alt}`}
+                    onClick={() => {
+                      showPhoto(i);
+                      lbRef.current?.showModal();
+                    }}
+                  >
+                    <Image src={p.src} alt={p.alt} width={p.w} height={p.h} sizes="(min-width: 900px) 33vw, 50vw" />
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Hadiah */}
+          <section className="hadiah t-ochre" id="hadiah">
+            <div className="wrap">
+              <div>
+                <h2>Tanda kasih</h2>
+                <p className="lead">Doa Anda sudah cukup bagi kami. Jika ingin berbagi kebahagiaan, tersedia rekening dan alamat berikut.</p>
+              </div>
+              <div>
+                {CONFIG.gifts.map((g) => (
+                  <GiftRow key={g.number} title={g.bank} number={g.number} note={`a.n. ${g.holder}`} copy={g.number} />
+                ))}
+                {/* <GiftRow
+                  title="Kirim hadiah ke alamat"
+                  note={`${CONFIG.giftAddress.to}, ${CONFIG.giftAddress.address}`}
+                  copy={`${CONFIG.giftAddress.to}, ${CONFIG.giftAddress.address}`}
+                /> */}
+              </div>
+            </div>
+          </section>
+
+          <div className="rail t-light" aria-hidden="true" />
+
+          {/* Konfirmasi dan ucapan */}
+          <section className="chapter flip t-light" id="ucapan">
+            <Fig k="intip" />
+            <div className="body">
+              <h2>Konfirmasi dan ucapan</h2>
+              <p className="lead">Beri tahu kami apakah Anda hadir, lalu tuliskan doa untuk kedua mempelai.</p>
+              <form onSubmit={submit}>
+                <div>
+                  <label htmlFor="f-nama">Nama</label>
+                  <input id="f-nama" type="text" maxLength={60} required autoComplete="name" value={nama} onChange={(e) => setNama(e.target.value)} />
+                </div>
+                <fieldset>
+                  <legend>Kehadiran</legend>
+                  <div className="opts">
+                    {["Hadir", "Tidak hadir", "Belum pasti"].map((v, i) => (
+                      <label key={v}>
+                        <input type="radio" name="hadir" value={v} defaultChecked={i === 0} />
+                        <span>{v}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <div>
+                  <label htmlFor="f-jml">Jumlah tamu yang hadir</label>
+                  <select id="f-jml" name="jumlah" defaultValue="1">
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="f-ucapan">Ucapan dan doa</label>
+                  <textarea id="f-ucapan" maxLength={400} required value={ucapan} onChange={(e) => setUcapan(e.target.value)} />
+                </div>
+                <button className="btn" type="submit">Kirim ucapan</button>
+              </form>
+              <h3 className="wishes-h">{wishes.length ? `Ucapan dari tamu (${wishes.length})` : "Ucapan dari tamu"}</h3>
+              <div className="wishes">
+                {wishes.length ? (
+                  wishes.slice().reverse().map((w) => (
+                    <div className="wish" key={w.ts + w.nama}>
+                      <b>{w.nama}</b>
+                      <small>
+                        {w.hadir}
+                        {w.hadir === "Hadir" ? ` (${w.jumlah} orang)` : ""} · {ago(w.ts)}
+                      </small>
+                      <p>{w.ucapan}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="empty">Belum ada ucapan. Tulis yang pertama lewat formulir di atas.</p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Penutup */}
+          <section className="chapter closing t-red" id="penutup">
+            <Fig k="sofa2" />
+            <div className="body">
+              <h2>Terima kasih</h2>
+              <p className="lead">Atas doa dan kehadiran Anda, kami ucapkan terima kasih. Wassalamu&apos;alaikum warahmatullahi wabarakatuh.</p>
+              <p className="names">{bride.name} &amp; {groom.name}, dan keluarga besar</p>
+              {CONFIG.photoCredit && <p className="meta">{CONFIG.photoCredit}</p>}
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <nav className="bar" aria-label="Menu undangan" inert={!opened}>
+        {NAV.map(([id, label]) => (
+          <a key={id} href={`#${id}`} className={active === id ? "on" : undefined}>
+            {label}
+          </a>
+        ))}
+      </nav>
+
+      <dialog
+        id="lb"
+        ref={lbRef}
+        aria-label="Galeri foto"
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") showPhoto(cur + 1);
+          if (e.key === "ArrowLeft") showPhoto(cur - 1);
+        }}
+      >
+        <div className="lb-in" onClick={(e) => e.target === e.currentTarget && lbRef.current?.close()}>
+          <button className="btn line lb-close" type="button" onClick={() => lbRef.current?.close()}>
+            Tutup
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.src} alt={photo.alt} />
+          <div className="lb-bar">
+            <button className="btn line" type="button" onClick={() => showPhoto(cur - 1)}>Sebelumnya</button>
+            <span aria-live="polite">{cur + 1} dari {GALLERY.length}</span>
+            <button className="btn line" type="button" onClick={() => showPhoto(cur + 1)}>Berikutnya</button>
+          </div>
+        </div>
+      </dialog>
+
+      {musicOk && (
+        <audio
+          ref={bgmRef}
+          src={CONFIG.music}
+          loop
+          preload="none"
+          onError={() => {
+            if (music.current.want) showToast("Musik tidak dapat dimuat.");
+            music.current.want = false;
+            setMusicOk(false);
+            setPlaying(false);
+          }}
+        />
+      )}
+      <div className={"toast" + (toast ? " show" : "")} role="status" aria-live="polite">{toast}</div>
+    </>
+  );
+}
