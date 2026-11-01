@@ -16,13 +16,13 @@ export type InviteEvent = {
 export const CONFIG = {
   groom: {
     name: "Tasbih",
-    full: "Muh. Tasbih,S.H.",
-    parents: "Tunggal dari Bapak Muh.Lukman & Hj.Indo Intang,S.Kep.,Ns",
+    full: "Muh. Tasbih, S.H.",
+    parents: "Tunggal dari Bapak Muh.Lukman & Hj. Indo Intang, S.Kep.,Ns",
   } satisfies Person,
   bride: {
     name: "Tami",
-    full: "ST. Nurul utami S, S.H.",
-    parents: "Ketiga dari bapak Syaripuddin T, S.H. Dan Ibu Fitriah",
+    full: "ST. Nurul Utami S, S.H.",
+    parents: "Ketiga dari Bapak Syaripuddin T, S.H. & Ibu Fitriah",
   } satisfies Person,
   // Tambah acara lain (mis. Mappacci) dengan menyalin satu objek di bawah.
   events: [
