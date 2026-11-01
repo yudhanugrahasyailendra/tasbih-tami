@@ -39,7 +39,7 @@ function PersonCard({ p, role }: { p: Person; role: "Putri" | "Putra" }) {
       <h3>{p.name}</h3>
       <p className="full">{p.full}</p>
       <p>
-        {role} dari {p.parents}.
+        {role} {p.parents}.
       </p>
     </article>
   );

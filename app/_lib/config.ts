@@ -22,7 +22,7 @@ export const CONFIG = {
   bride: {
     name: "Tami",
     full: "ST. Nurul utami S, S.H.",
-    parents: "ketiga dari bapak syaripuddin T, S.H. Dan Ibu Fitriah",
+    parents: "Ketiga dari bapak Syaripuddin T, S.H. Dan Ibu Fitriah",
   } satisfies Person,
   // Tambah acara lain (mis. Mappacci) dengan menyalin satu objek di bawah.
   events: [
