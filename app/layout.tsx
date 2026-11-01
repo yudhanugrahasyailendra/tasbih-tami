@@ -17,14 +17,14 @@ const text = Hanken_Grotesk({
   display: "swap",
 });
 
-const title = `Pernikahan ${CONFIG.bride.name} & ${CONFIG.groom.name}`;
+const title = `Pernikahan ${CONFIG.groom.name} & ${CONFIG.bride.name}`;
 
 export const metadata: Metadata = {
   title,
-  description: `Undangan pernikahan ${CONFIG.bride.name} & ${CONFIG.groom.name}, Sabtu 20 Februari 2027.`,
+  description: `Undangan pernikahan ${CONFIG.groom.name} & ${CONFIG.bride.name}, Sabtu, 05 Desember 2026.`,
   openGraph: {
     title,
-    description: "Kami mengundang Anda hadir dan mendoakan. Sabtu, 20 Februari 2027.",
+    description: "Kami mengundang Anda hadir dan mendoakan. Sabtu, 05 Desember 2026.",
   },
 };
 
