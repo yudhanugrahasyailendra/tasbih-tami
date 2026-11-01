@@ -53,9 +53,9 @@ export const CONFIG = {
   ] as InviteEvent[],
   // dresscode: "krem, peach, atau merah marun", // kosongkan untuk menyembunyikan
   map: {
-    venue: "GEDUNG ISLAMIC CENTRE IMMIM 1",
-    address: "Jl. Jend. Sudirman No. 33 Sawerigading Kec. Ujung Pandang Makassar",
-    query: "Gedung Islamic Centre IMMIM, Makassar", // alamat, nama tempat, atau "lat,lng"
+    venue: "RUMAH KEDIAMAN MEMPELAI LAKI-LAKI (MUH.TASBIH)",
+    address: "Jl. Poros Pakkasalo, Salo Belawa Dekat Jembatan Tiga",
+    query: "3274+CXQ Kalosi Alau, Sidenreng Rappang Regency, South Sulawesi", // alamat, nama tempat, atau "lat,lng"
   },
   gifts: [
     {
