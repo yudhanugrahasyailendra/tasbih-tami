@@ -24,7 +24,6 @@ export const CONFIG = {
     full: "ST. Nurul utami S, S.H.",
     parents: "ketiga dari bapak syaripuddin T, S.H. Dan Ibu Fitriah",
   } satisfies Person,
-  countdown: { to: "2026-12-05T09:00:00+08:00", label: "akad nikah" },
   // Tambah acara lain (mis. Mappacci) dengan menyalin satu objek di bawah.
   events: [
     {
@@ -35,14 +34,14 @@ export const CONFIG = {
       address:
         "Jl. Jend. Sudirman No. 33 Sawerigading Kec. Ujung Pandang Makassar",
     },
-    {
-      name: "Resepsi",
-      start: "2026-12-05T11:00:00+08:00",
-      what: "Jamuan bersama keluarga dan sahabat. Anda dipersilakan memberi doa langsung kepada kedua mempelai.",
-      venue: "GEDUNG ISLAMIC CENTRE IMMIM 1",
-      address:
-        "Jl. Jend. Sudirman No. 33 Sawerigading Kec. Ujung Pandang Makassar",
-    },
+    // {
+    //   name: "Resepsi",
+    //   start: "2026-12-05T11:00:00+08:00",
+    //   what: "Jamuan bersama keluarga dan sahabat. Anda dipersilakan memberi doa langsung kepada kedua mempelai.",
+    //   venue: "GEDUNG ISLAMIC CENTRE IMMIM 1",
+    //   address:
+    //     "Jl. Jend. Sudirman No. 33 Sawerigading Kec. Ujung Pandang Makassar",
+    // },
     {
       name: "Resepsi",
       start: "2026-12-06T10:00:00+08:00",

@@ -11,6 +11,11 @@ import { ATTENDANCE_LABEL, ATTENDANCE_OPTIONS, type Wish } from "../_lib/wishes"
 
 const { bride, groom, events } = CONFIG;
 const MUSIC_LEVEL = 0.5;
+const UNITS = ["Hari", "Jam", "Menit", "Detik"] as const;
+function parts(ms: number) {
+  const t = Math.floor(ms / 1000);
+  return [Math.floor(t / 86400), Math.floor((t % 86400) / 3600), Math.floor((t % 3600) / 60), t % 60];
+}
 const NAV = [
   ["acara", "Acara"],
   ["lokasi", "Lokasi"],
@@ -85,7 +90,7 @@ export default function Invitation({ guest = "", slug, maxPax }: Props) {
   const [opened, setOpened] = useState(false);
   const [coverGone, setCoverGone] = useState(false);
   const [active, setActive] = useState("");
-  const [count, setCount] = useState("");
+  const [now, setNow] = useState<number | null>(null);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [playing, setPlaying] = useState(false);
   const [toast, setToast] = useState("");
@@ -125,23 +130,39 @@ export default function Invitation({ guest = "", slug, maxPax }: Props) {
 
   useEffect(() => openRef.current?.focus({ preventScroll: true }), []);
 
-  /* Hitung mundur dalam kalimat */
+  /* Animasi masuk per bagian (tema tirai). Dilewati jika pengguna memilih mengurangi gerakan. */
   useEffect(() => {
-    const target = new Date(CONFIG.countdown.to).getTime();
-    const label = CONFIG.countdown.label;
-    const tick = () => {
-      const ms = target - Date.now();
-      if (ms <= 0) {
-        setCount(`${label[0].toUpperCase() + label.slice(1)} sudah berlangsung. Terima kasih atas doa Anda.`);
-        return;
-      }
-      const d = Math.floor(ms / 864e5);
-      const hr = Math.floor((ms % 864e5) / 36e5);
-      const mn = Math.floor((ms % 36e5) / 6e4);
-      setCount(d > 0 ? `${d} hari ${hr} jam lagi menuju ${label}.` : `${hr} jam ${mn} menit lagi menuju ${label}.`);
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    document.body.classList.add("anim");
+    return () => document.body.classList.remove("anim");
+  }, []);
+
+  useEffect(() => {
+    if (!opened) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const io = new IntersectionObserver(
+      (es) =>
+        es.forEach((e) => {
+          if (!e.isIntersecting) return;
+          const el = e.target;
+          io.unobserve(el);
+          // hero menunggu tirai cover selesai terbuka
+          timers.push(setTimeout(() => el.classList.add("in"), el.id === "awal" ? 1400 : 0));
+        }),
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.15 },
+    );
+    document.querySelectorAll("main > section, main > .rail").forEach((el) => io.observe(el));
+    return () => {
+      io.disconnect();
+      timers.forEach(clearTimeout);
     };
+  }, [opened]);
+
+  /* Hitung mundur tiap acara, diperbarui tiap detik */
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
     tick();
-    const id = setInterval(tick, 30000);
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -236,7 +257,6 @@ export default function Invitation({ guest = "", slug, maxPax }: Props) {
   }
 
   const mapQuery = encodeURIComponent(CONFIG.map.query);
-  const heroDate = fmtDate(CONFIG.countdown.to);
 
   return (
     <>
@@ -262,8 +282,33 @@ export default function Invitation({ guest = "", slug, maxPax }: Props) {
             <Fig k="celah" priority />
             <div className="body">
               <h1 ref={h1Ref} tabIndex={-1}>{names}</h1>
-              <p className="info">{heroDate}</p>
-              <p className="count">{count}</p>
+              <div className="schedule">
+                {events.map((ev) => {
+                  const left = now === null ? null : Math.max(0, new Date(ev.start).getTime() - now);
+                  return (
+                    <div className="event" key={`${ev.start}-${ev.name}`}>
+                      <p className="info">
+                        {ev.name}
+                        <span>{fmtDate(ev.start)}</span>
+                      </p>
+                      <div className="count" role="timer" aria-label={`Menuju ${ev.name}`}>
+                        {left === null ? null : left === 0 ? (
+                          <p className="done">{ev.name} sudah berlangsung. Terima kasih atas doa Anda.</p>
+                        ) : (
+                          <ul>
+                            {parts(left).map((v, i) => (
+                              <li key={UNITS[i]}>
+                                <b>{String(v).padStart(2, "0")}</b>
+                                <span>{UNITS[i]}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
               <p className="invite lead">Kami mengundang Bapak/Ibu/Saudara/i untuk hadir dan mendoakan pernikahan kami.</p>
               <button
                 className="vinyl"
@@ -396,6 +441,7 @@ export default function Invitation({ guest = "", slug, maxPax }: Props) {
                   <button
                     key={key}
                     className="tile"
+                    style={{ "--t": i % 6 } as CSSProperties}
                     type="button"
                     aria-label={`Perbesar foto ${i + 1}: ${p.alt}`}
                     onClick={() => {
@@ -503,7 +549,7 @@ export default function Invitation({ guest = "", slug, maxPax }: Props) {
             <div className="body">
               <h2>Terima kasih</h2>
               <p className="lead">Atas doa dan kehadiran Anda, kami ucapkan terima kasih. Wassalamu&apos;alaikum warahmatullahi wabarakatuh.</p>
-              <p className="names">{bride.name} &amp; {groom.name}, dan keluarga besar</p>
+              <p className="names">{groom.name} &amp; {bride.name}</p>
               {CONFIG.photoCredit && <p className="meta">{CONFIG.photoCredit}</p>}
               <aside className="made-by" aria-label="Pembuat undangan">
                 <p className="label">Created By:</p>
