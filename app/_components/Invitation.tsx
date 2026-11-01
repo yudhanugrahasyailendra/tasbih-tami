@@ -270,7 +270,7 @@ export default function Invitation({ guest = "", slug, maxPax }: Props) {
           <p className="to">Kepada Yth.</p>
           <p className="guest">{guest || "Bapak/Ibu/Saudara/i"}</p>
           <button ref={openRef} className="btn" type="button" onClick={open}>
-            Buka undangan
+            Buka Undangan
           </button>
         </div>
       </div>
